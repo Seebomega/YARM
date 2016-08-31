@@ -1,8 +1,5 @@
 require "resmon"
-require "remote"
 
-
--- if this ever happens, I'll be enormously surprised
 if not resmon then error("{{MOD_NAME}} has become badly corrupted: the variable resmon should've been set!") end
 
 
@@ -13,37 +10,14 @@ function msg_all(message)
 end
 
 
-script.on_init(function()
-    local _, err = pcall(resmon.init_globals)
-    if err then msg_all({"YARM-err-generic", err}) end
-end)
+script.on_init(resmon.on_init)
+script.on_configuration_changed(resmon.on_configuration_changed)
 
 
-script.on_configuration_changed(function()
-    local _, err = pcall(resmon.init_globals)
-    if err then msg_all({"YARM-err-generic", err}) end
-end)
-
-
-script.on_event(defines.events.on_player_created, function(event)
-    local _, err = pcall(resmon.on_player_created, event)
-    if err then msg_all({"YARM-err-specific", "on_player_created", err}) end
-end)
-
-
-script.on_event(defines.events.on_built_entity, function(event)
-    local _, err = pcall(resmon.on_built_entity, event)
-    if err then msg_all({"YARM-err-specific", "on_built_entity", err}) end
-end)
-
-
-script.on_event(defines.events.on_tick, function(event)
-    local _, err = pcall(resmon.on_tick, event)
-    if err then msg_all({"YARM-err-specific", "on_tick", err}) end
-end)
-
-
-script.on_event(defines.events.on_gui_click, function(event)
-    local _, err = pcall(resmon.on_gui_click, event)
-    if err then msg_all({"YARM-err-specific", "on_gui_click", err}) end
-end)
+for name, func in pairs(resmon.events) do
+    if not defines.events[name] then
+        log(string.format("{{MOD_NAME}}: ignoring handler for non-existent event %s", name))
+    else
+        script.on_event(defines.events[name], func)
+    end
+end
