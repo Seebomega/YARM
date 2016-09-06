@@ -3,11 +3,14 @@ require "lib/string"
 
 resmon = {}
 
-require "control_migrations"
 require "resmon/events"
 require "resmon/filters"
+require "resmon/migrations"
+require "resmon/tracker"
+
 
 function resmon.on_init()
+    resmon.tracker.global_init()
 end
 
 
@@ -44,11 +47,10 @@ function resmon.on_drill_built(drill)
         }
     }
 
-    -- proof of concept: miner visible ore count
-    local count = 0
+    indices = {}
     for _, ore in pairs(ores) do
-        count = count + ore.amount
+        table.insert(indices, resmon.tracker.get_ore_index(ore))
     end
 
-    msg_all({"", "The ", drill.localised_name, " has ", count, " ore"})
+    msg_all({"", "The ", drill.localised_name, " has the ores ", table.concat(indices, ', ')})
 end
