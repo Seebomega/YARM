@@ -49,11 +49,23 @@ function resmon.events.on_robot_built_entity(event)
 end
 
 
-function resmon.events.on_player_mined_item(event)
-    -- TODO: event.player_index, event.item_stack
+function resmon.events.on_preplayer_mined_item(event)
+    -- TODO: event.player_index, event.entity
+    if resmon.is_drill(event.entity) then
+        resmon.on_drill_mined(event.entity)
+    end
 end
 
 
-function resmon.events.on_robot_mined(event)
-    -- TODO: event.robot, event.item_stack
+function resmon.events.on_robot_pre_mined(event)
+    -- TODO: event.robot, event.entity
+    if resmon.is_drill(event.entity) then
+        resmon.on_drill_mined(event.entity)
+    end
+end
+
+
+function resmon.events.on_tick(event)
+    -- TODO: as little as possible
+    resmon.update_drills(event)
 end

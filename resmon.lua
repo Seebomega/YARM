@@ -31,9 +31,14 @@ function resmon.on_configuration_changed(config_data)
 end
 
 
-function resmon.is_drill(entity_prototype)
-    return (entity_prototype.type == "mining-drill")
+function resmon.is_drill(entity)
+    if not entity or not entity.valid then return false end
+
+    return (entity.type == "mining-drill")
 end
+
+
+local drills = {}
 
 
 function resmon.on_drill_built(drill)
@@ -47,10 +52,50 @@ function resmon.on_drill_built(drill)
         }
     }
 
-    indices = {}
+    local indices = {}
     for _, ore in pairs(ores) do
         table.insert(indices, resmon.tracker.get_ore_index(ore))
     end
 
-    msg_all(string.format("The %s (%d) has the ores %s", drill.localised_name, drill.unit_number, table.concat(indices, ', ')))
+    local drill_data = {
+        entity = drill,
+        ore_indices = indices,
+    }
+
+    drills[drill.unit_number] = drill_data
+
+    msg_all{"yarm.drill_has", drill.localised_name, drill.unit_number, {"", "the ores: ", table.concat(indices, ', ')}}
+end
+
+
+local function count_drill(drill_data)
+    local count = 0
+
+    for _,index in pairs(drill_data.ore_indices) do
+        local ore = resmon.tracker.get_ore(drill_data.entity.surface, index)
+
+        if ore and ore.valid then
+            count = count + ore.amount
+        end
+    end
+
+    msg_all{"yarm.drill_has", drill_data.entity.localised_name, drill_data.entity.unit_number, string.format("%d ore", count)}
+end
+
+
+function resmon.update_drills(event)
+    if event.tick % 300 ~= 45 then return end
+
+    for key,drill_data in pairs(drills) do
+        if not drill_data.entity or not drill_data.entity.valid then
+            drills[key] = nil
+        else
+            count_drill(drill_data)
+        end
+    end
+end
+
+
+function resmon.on_drill_mined(entity)
+    drills[entity.unit_number] = nil
 end
