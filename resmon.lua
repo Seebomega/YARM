@@ -52,5 +52,5 @@ function resmon.on_drill_built(drill)
         table.insert(indices, resmon.tracker.get_ore_index(ore))
     end
 
-    msg_all({"", "The ", drill.localised_name, " has the ores ", table.concat(indices, ', ')})
+    msg_all(string.format("The %s (%d) has the ores %s", drill.localised_name, drill.unit_number, table.concat(indices, ', ')))
 end
