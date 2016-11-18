@@ -54,7 +54,9 @@ function resmon.on_drill_built(drill)
 
     local indices = {}
     for _, ore in pairs(ores) do
-        table.insert(indices, resmon.tracker.get_ore_index(ore))
+        local index = resmon.tracker.get_ore_index(ore)
+        table.insert(indices, index)
+        resmon.tracker.activate(ore.surface.name, index)
     end
 
     local drill_data = {
@@ -71,12 +73,11 @@ end
 local function count_drill(drill_data)
     local count = 0
 
-    for _,index in pairs(drill_data.ore_indices) do
-        local ore = resmon.tracker.get_ore(drill_data.entity.surface, index)
+    local surface_name = drill_data.entity.surface.name
+    local get_amount = resmon.tracker.get_amount
 
-        if ore and ore.valid then
-            count = count + ore.amount
-        end
+    for _,index in pairs(drill_data.ore_indices) do
+        count = count + get_amount(surface_name, index)
     end
 
     msg_all{"yarm.drill_has", drill_data.entity.localised_name, drill_data.entity.unit_number, string.format("%d ore", count)}
@@ -97,5 +98,11 @@ end
 
 
 function resmon.on_drill_mined(entity)
+    if not drills or not drills[entity.unit_number] then return end
+
+    for _,index in pairs(drills[entity.unit_number].ore_indices) do
+        resmon.tracker.deactivate(entity.surface.name, index)
+    end
+
     drills[entity.unit_number] = nil
 end

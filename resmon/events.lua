@@ -67,5 +67,6 @@ end
 
 function resmon.events.on_tick(event)
     -- TODO: as little as possible
+    resmon.tracker.update_amounts()
     resmon.update_drills(event)
 end

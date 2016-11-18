@@ -7,6 +7,7 @@ local ore_cache = {}
 
 function resmon.tracker.global_init()
     global.ores = global.ores or {}
+    global.active_indices = global.active_indices or {}
 end
 
 
@@ -24,6 +25,7 @@ function resmon.tracker.get_ore_index(entity)
             x = {},
             y = {},
             coords = {},
+            last_amount = {},
         }
     end
     local ore_table = global.ores[surface_name]
@@ -42,6 +44,8 @@ function resmon.tracker.get_ore_index(entity)
     ore_table.x[new_index] = x
     ore_table.y[new_index] = y
 
+    ore_table.last_amount[new_index] = entity.amount
+
     ore_cache[surface_name] = ore_cache[surface_name] or {}
     ore_cache[surface_name][new_index] = entity
 
@@ -58,12 +62,13 @@ local function uncache(ore_table, cache, index)
 
     ore_table.x[index] = nil
     ore_table.y[index] = nil
+
+    ore_table.last_amount[index] = nil
     cache[index] = nil
 end
 
 
-function resmon.tracker.get_ore(surface, index)
-    local surface_name = surface.name
+function resmon.tracker.get_ore(surface_name, index)
     local ore_table = global.ores[surface_name]
 
     ore_cache[surface_name] = ore_cache[surface_name] or {}
@@ -91,7 +96,7 @@ function resmon.tracker.get_ore(surface, index)
     local x = ore_table.x[index] + 0.5
     local y = ore_table.y[index] + 0.5
 
-    local entity = surface.find_entities_filtered{type="resource", position={x,y}}[1]
+    local entity = game.surfaces[surface_name].find_entities_filtered{type="resource", position={x,y}}[1]
 
     -- However, if the entity is gone or invalid, we should remove its index
     -- now to prevent getting asked about it again
@@ -103,4 +108,84 @@ function resmon.tracker.get_ore(surface, index)
     -- Finally, we know we have a valid ore entity, so record it and return it.
     cache[index] = entity
     return entity
+end
+
+
+function resmon.tracker.activate(surface_name, index)
+    if not global.active_indices[surface_name] then
+        global.active_indices[surface_name] = {}
+    end
+    local actives = global.active_indices[surface_name]
+
+    if actives[index] then
+        actives[index] = actives[index] + 1
+    else
+        actives[index] = 1
+    end
+end
+
+
+function resmon.tracker.deactivate(surface_name, index)
+    if not global.active_indices[surface_name] then
+        global.active_indices[surface_name] = {}
+    end
+    local actives = global.active_indices[surface_name]
+
+    if not actives[index] then
+        return
+    end
+
+    actives[index] = actives[index] - 1
+    if actives[index] < 1 then
+        global.active_indices[surface_name][index] = nil
+    end
+end
+
+
+function resmon.tracker.get_amount(surface_name, index)
+    local ore_table = global.ores[surface_name]
+
+    -- Sanity check: if the index does not/cannot exist, return nil
+    if not ore_table or not ore_table.last_amount[index] then
+        return 0
+    end
+
+    return ore_table.last_amount[index]
+end
+
+local iter_funcs = {}
+local iter_states = {}
+local iter_indices = {}
+
+local function next_ore_index(surface_name, active_ores)
+    if not iter_indices[surface_name] then
+        iter_funcs[surface_name], iter_states[surface_name], iter_indices[surface_name] = pairs(active_ores)
+    end
+
+    local func = iter_funcs[surface_name]
+    local state = iter_states[surface_name]
+    local index = func(state, iter_indices[surface_name])
+    iter_indices[surface_name] = index
+    return index
+end
+
+function resmon.tracker.update_amounts()
+    local get_ore = resmon.tracker.get_ore
+
+    for surface_name,active_ores in pairs(global.active_indices) do
+        local last_amounts = global.ores[surface_name].last_amount
+        for _ = 1,10 do
+            local index = next_ore_index(surface_name, active_ores)
+            if index then
+                log(string.format("Updating ore %d", index))
+                local ore = get_ore(surface_name, index)
+
+                if ore and ore.valid then
+                    last_amounts[index] = ore.amount
+                else
+                    last_amounts[index] = nil
+                end
+            end
+        end
+    end
 end
